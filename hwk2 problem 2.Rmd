@@ -1,0 +1,94 @@
+---
+title: "STA hwk 2 (2)"
+output: html_document
+date: "2024-10-22"
+---
+
+```{r}
+library(car)
+library(forecast)
+library(moments)
+
+#a)
+hist(houstonrealesate$Yi, breaks = 20, main = "Histogram of Home Prices ",
+     xlab = "Home Prices", col = "red")
+```
+
+
+
+```{r }
+#b)
+Yi.pos = houstonrealesate$Yi+1
+lambda = BoxCox.lambda(Yi.pos)
+lambda
+boxcox.Yi = (Yi.pos^lambda - 1) / lambda
+
+
+```
+
+
+```{r }
+#c)
+hist(boxcox.Yi, breaks = 20, main = "Histogram of transformed home prices", xlab = "transformed home prices", col = "blue")
+
+```
+
+```{r}
+#d)
+library(forecast)
+lambda=BoxCox.lambda(Yi.pos)
+lambda
+boxcox.Yi=Yi.pos^-0.9423097
+boxcox.Yi=Yi.pos^-0.9423097
+```
+
+```{r}
+#e)
+skewness1 <- skewness(houstonrealesate$Yi)
+skewness.boxcox <- skewness(boxcox.Yi)
+
+skewness1
+skewness.boxcox
+
+#I would say transformed boxcox histogram looks better, because it reduces the skewness and makes the data distribution closer to normal. Although the transformation doesn't perfectly normalize the data, it is a significant improvement over the original
+
+```
+
+```{r}
+#g)
+shapiro.test(houstonrealesate$Yi)
+log.Yi <- log(Yi.pos)
+shapiro.test(log.Yi)
+shapiro.test(boxcox.Yi)
+
+```
+
+```{r}
+#h)
+model.Yi <- lm(Yi ~ x1i + x2i, data = houstonrealesate)
+summary(model.Yi)
+
+model.logYi <- lm(log.Yi ~ x1i + x2i, data = houstonrealesate)
+summary(model.logYi)
+
+model.boxcoxYi <- lm(boxcox.Yi ~ x1i + x2i, data = houstonrealesate)
+summary(model.boxcoxYi)
+
+plot(model.Yi$residuals, main = "Residuals of Yi")
+qqnorm(model.Yi$residuals, main = "QQ Plot of Yi")
+qqline(model.Yi$residuals)
+
+plot(model.logYi$residuals, main = "Residuals of log Yi")
+qqnorm(model.logYi$residuals, main = "QQ Plot of log Yi")
+qqline(model.logYi$residuals)
+
+plot(model.boxcoxYi$residuals, main = "Residuals of Box-Cox Yi")
+qqnorm(model.boxcoxYi$residuals, main = "QQ Plot of Box-Cox Yi")
+qqline(model.boxcoxYi$residuals)
+
+#I think Box-Cox transformed model's plots (both residual and QQ plots) are likely to be the best. Because the transformation seems right for skewness, resulting in more normally distributed residuals and a more appropriate model fit. Thus, Box-Cox transformation should be the best model for h) as it addresses non-linearity better than the original or log-transformed one.
+```
+
+```{r}
+
+```
