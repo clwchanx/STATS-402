@@ -1,0 +1,249 @@
+---
+title: "402- Presentation 1- Data Science Job Salaries"
+output: html_document
+date: "2024-10-24"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(ggplot2)
+library(car)
+
+
+
+
+```
+
+```{r}
+df <- read.csv("~/Downloads/DataScience_salaries_2024.csv")
+head(df)
+```
+```{r}
+sum(complete.cases(df)) == nrow(df) #Check for NA Values TRUE means there is none
+df <- unique(df) #Get rid of duplicate observations 
+```
+
+```{r}
+library(tidyverse)
+table(df$employment_type)
+df <- filter(df,employment_type == 'FT') # We will focus on full time salaries
+```
+```{r}
+table(df$work_year) #Too few observations in 2020-2022 so we'll combine them into "Pandemic Era"
+df$work_year <- ifelse(df$work_year == 2024, "2024",
+                ifelse(df$work_year == 2023, "2023", "Pandemic"))
+df$work_year <- factor(df$work_year,levels = c("Pandemic","2023","2024"), ordered = TRUE)
+#Relevel
+```
+```{r}
+table(df$experience_level)
+df$experience_level <- factor(df$experience_level, levels = c("EN","MI","SE","EX"), ordered = T) #Relevel
+```
+
+```{r}
+df <- select(df,-c("employment_type","salary","salary_currency","employee_residence"))
+#Get rid of employment type as every observation is full time
+#Get rid of salary and currency as we have the salary in USD
+#Get rid of employee residene as we already have the company location and the company location 
+#matters more for predicting the salary
+```
+
+```{r}
+table(df$remote_ratio)
+table(df$company_size)
+df$company_size <- factor(df$company_size,levels = c("S","M","L"), ordered = TRUE)
+```
+```{r}
+df$remote_ratio <- car::recode(df$remote_ratio,"0='In-Person';50='Hybrid';100='Remote'")
+df$remote_ratio <- factor(df$remote_ratio, levels = c("In-Person","Hybrid","Remote"))
+
+```
+
+```{r}
+install.packages("countrycode")
+library(countrycode)
+df$company_location <- countrycode(df$company_location, origin = "iso2c", destination = "country.name")
+table(df$company_location)
+
+developed_countries <- c("Andorra","Australia","Austria","Belgium","Canada","Croatia","Czechia","Denmark","Estonia","Finland","France","Germany","Gibraltar","Greece","Hong Kong SAR China","Ireland","Israel","Italy","Japan","Latvia","Lithuania","Luxembourg","Malta","Netherlands","New Zealand","Norway","Portugal","Singapore","Slovenia","South Korea","Spain","Sweden","Switzerland","United Kingdom")
+
+df$company_location <- ifelse(df$company_location == "United States", "US",
+                       ifelse(df$company_location %in% developed_countries,"First World","Developing"))
+#Combine all first world countries into developed label leaving the rest as the developing countries
+df$company_location <- factor(df$company_location, levels = c("US","First World","Developing"))
+```
+```{r}
+titles <- names(table(df$job_title))
+analyst <- c(titles[c(1,40,44:51,67,75,78,93,103:104,109,126,134,139,148)])
+scientist <- c(titles[c(13,79:89,99,106,111,125,128,137,149)])
+mle <- c(titles[c(14:15,107,112:123,129:131,138)])
+engineer <- c(titles[c(20,27,38:39,54:56,58,69,72,76,94,110,127,136,147,150)])
+BI <- c(titles[c(21:24,28:36,133)])
+df$job_title <- ifelse(df$job_title %in% analyst, "DA",
+                ifelse(df$job_title %in% scientist,"DS",
+                ifelse(df$job_title %in% engineer, "DE",
+                ifelse(df$job_title %in% mle,"ML",
+                ifelse(df$job_title %in% BI,"BI","Other")))))
+df$job_title <- relevel(factor(df$job_title), ref = "DA")
+#Condense all titles with data science in the name to data scientist and repeat for analysts, MLE and etc
+```
+
+```{r}
+df
+```
+```
+#START OF EDA
+```{r}
+# Create the side-by-side boxplots for work_year
+ggplot(df, aes(x = work_year, y = salary_in_usd, fill = work_year)) +
+  geom_boxplot() +
+  labs(title = "Salary in USD by Work Year",
+       x = "Work Year",
+       y = "Salary in USD") +
+  scale_fill_manual(values = c("Pandemic" = "red", "2023" = "green", "2024" = "blue")) +
+  theme_minimal() +
+  theme(legend.position = "none") # Hide the legend as fill corresponds to x-axis categories
+```
+In the side-by-side boxplots of Salary by Work Year, we can see that all three factors have 
+high outliers and are skewed right, with 2024 having the most outliers and strongest skew. 
+Might consider tranforming (logarithmic?). There is variability (IQR) for all three factors is similar.
+
+```{r}
+# Create the boxplot side-by-side boxplots for experience_level
+ggplot(df, aes(x = experience_level, y = salary_in_usd, fill = experience_level)) +
+  geom_boxplot() +
+  labs(title = "Salary in USD by Experience Level",
+       x = "Experience Level",
+       y = "Salary in USD") +
+  scale_fill_manual(values = c("EN" = "red", "MI" = "green", "SE" = "blue", "EX" = "purple")) +
+  theme_minimal() +
+  theme(legend.position = "none") # Hide legend as fill is mapped to x-axis categories
+```
+In the side-by-side boxplots of Salary by Experience Level, we can see that all factors 
+have high outliers and are skewed right, with Mid and Senior levels having the most 
+outliers and strongest skew. Might consider tranforming (or looking at subset of data, 
+under 3-400K?). The pattern is predictable that as experience level increase so do the 
+median/ majority of salaries.
+
+```{r}
+# Create the boxplot side-by-side boxplots for job_title
+ggplot(df, aes(x = job_title, y = salary_in_usd, fill = job_title)) +
+  geom_boxplot() +
+  labs(title = "Salary in USD by Job Title",
+       x = "Job Title",
+       y = "Salary in USD") +
+  scale_fill_manual(values = c("DA" = "red", "DS" = "green", "DE" = "blue", "ML" = "purple", "BI" = "orange", "Other" = "yellow")) +
+  theme_minimal() +
+  theme(legend.position = "none") # Hide legend as fill is mapped to x-axis categories
+  
+# Create histogram of salary_in_usd for job_title "BI"
+ggplot(df %>% filter(job_title == "BI"), aes(x = salary_in_usd)) +
+  geom_histogram(binwidth = 5000, fill = "blue", color = "black", alpha = 0.7) +
+  labs(title = "Histogram of Salary in USD (Company Location: US)",
+       x = "Salary in USD",
+       y = "Frequency") +
+  theme_minimal()
+```
+In the side-by-side boxplots of Salary by Job Title, we can see that all factors have high outliers and 
+are skewed right, except BI which has the least amount of outliers and slightly symmetric. Might consider
+tranforming (or looking at subset of data, under 3-400K?).
+
+```{r}
+# Create the boxplot side-by-side boxplots for remote_ratio
+ggplot(df, aes(x = remote_ratio, y = salary_in_usd, fill = remote_ratio)) +
+  geom_boxplot() +
+  labs(title = "Salary in USD by Work Setting",
+       x = "Work Setting",
+       y = "Salary in USD") +
+  scale_fill_manual(values = c("In-Person" = "red", "Hybrid" = "green", "Remote" = "blue")) +
+  theme_minimal() +
+  theme(legend.position = "none") # Hide legend as fill is mapped to x-axis categories
+```
+In the side-by-side boxplots of Salary by Work Setting, we can see that all factors have high outliers 
+and are skewed right, with In-Person and Remote making significantly more than the "Hybrid"setting. 
+
+```{r}
+# Create the boxplot side-by-side boxplots for company_location
+ggplot(df, aes(x = company_location, y = salary_in_usd, fill = company_location)) +
+  geom_boxplot() +
+  labs(title = "Salary in USD by Company Location",
+       x = "Company Location",
+       y = "Salary in USD") +
+  scale_fill_manual(values = c("US" = "red", "First World" = "green", "Developing" = "blue")) +
+  theme_minimal() +
+  theme(legend.position = "none") # Hide legend as fill is mapped to x-axis categories
+  
+# Create histogram of salary_in_usd for company_location "US"
+ggplot(df %>% filter(company_location == "US"), aes(x = salary_in_usd)) +
+  geom_histogram(binwidth = 5000, fill = "blue", color = "black", alpha = 0.7) +
+  labs(title = "Histogram of Salary in USD (Company Location: US)",
+       x = "Salary in USD",
+       y = "Frequency") +
+  theme_minimal()
+```
+In the side-by-side boxplots of Salary by Company Location, we can see that all factors have high 
+outliers and are skewed right. With the US making the most on average, followed by First world, then
+developing countries. Might consider tranforming (or looking at subset of data, under 3-400K?). 
+Or should we look at just US data?
+
+```{r}
+# Create the boxplot side-by-side boxplots for company_size
+ggplot(df, aes(x = company_size, y = salary_in_usd, fill = company_size)) +
+  geom_boxplot() +
+  labs(title = "Salary in USD by Company Size",
+       x = "Company Size",
+       y = "Salary in USD") +
+  scale_fill_manual(values = c("S" = "red", "M" = "green", "L" = "blue")) +
+  theme_minimal() +
+  theme(legend.position = "none") # Hide legend as fill is mapped to x-axis categories
+```
+In the side-by-side boxplots of Salary by Company size, we can see that all factors have high outliers 
+and Medium size companies have the strongest right skew and most outliers, followed by Large then small 
+size companies. Might consider tranforming (or looking at subset of data, under 3-400K?). 
+
+```{r}
+# Create a two-way table
+two_way_table <- table(df$job_title, df$company_location)
+
+# Convert to proportions
+proportional_table <- prop.table(two_way_table)
+
+# Print the proportional table
+print(proportional_table)
+total <- colSums(proportional_table)
+total
+```
+We can see a majority of the data comes from the US. I am wondering how much the context changes outside 
+of the US, would it be worth it to make predictions based on data only from the US?
+
+```{r}
+# Create histogram of salary_in_usd
+ggplot(df, aes(x = salary_in_usd)) +
+  geom_histogram(binwidth = 5000, fill = "blue", color = "black", alpha = 0.7) +
+  labs(title = "Histogram of Salary in USD",
+       x = "Salary in USD",
+       y = "Frequency") +
+  theme_minimal()
+  
+# Create the boxplot for salary_in_usd
+ggplot(df, aes(salary_in_usd)) +
+  geom_boxplot() +
+  labs(title = "Salary in USD") 
+
+#MLR model
+model1 <- lm(salary_in_usd ~ work_year + experience_level + job_title + remote_ratio + company_location + company_size, df)
+summary(model1)
+
+plot(model1)
+#see funnel pattern in residual, and qqplot does not follow the normal line
+
+library(car)  # for VIF function
+vif(model1)
+```
+We can see see funnel pattern in residual, and qqplot does not follow the normal line. 
+From the Q-Q residual plot that the data is mostly linear until it gets about 2 standard deviations above the mean. 
+Consider subsetting this data?.
+All VIF values are pretty low, suggesting low multicollinearity.
+
