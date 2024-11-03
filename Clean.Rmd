@@ -167,24 +167,34 @@ m_ind = lm(salary_in_usd~work_year+experience_level+job_title+remote_ratio+compa
   data=df)
 summary(m_ind)
 ```
-Then we do the additive model fitted on the variable salary.
+Then we do the additive log transform model fitted on the variable salary.
+
 ```{r}
-model.a1 = aov(salary_in_usd ~ ., data = df)
+model.a1 = aov(log10(salary_in_usd) ~ ., data = df)
 summary(model.a1)
 
 ```
-All predictors in the model—work year, experience level, job title, remote ratio, company location, and company size—are statistically significant factors in determining the salary in USD, with experience level and company location showing the strongest effects based on their F values.
-Then,let's do a model diagnostic
-```{r}
+So after fitting the model with the log-transformed salary, it turns out that all the predictors—work year, experience level, job title, remote ratio, company location, and company size—are significant, meaning they all have a real impact on salary. Experience level and company location stand out as the biggest drivers, with the highest F-values, suggesting they influence salary the most. Job title and remote ratio also matter quite a bit
 
-par(mfrow = c(2, 2))
-plot(model.a1)
+```{r}
+residuals.log = residuals(model.a1)
+
+plot(residuals.log, main = "residuals after log transformation", 
+     ylab = "residuals", xlab = "index", col = 'yellow')
+abline(h = 0, col = "red", lwd = 2)
+
 ```
-The diagnostic plot seems fits well, with only several outliers.
+
+
+The log-transformed additive model is good but not perfect. The log transformation did help a bit where most residuals are centered around zero, which is a good sign. However, there’s still a slight trend and the spread of the residuals isn’t quite even.
 
 Then we will do the tukey honest significant difference, it can tell us which speicific group variable have significantly different mean log-transformed salary from each other.
+
+
+
 ```{r}
 TukeyHSD(aov(log10(salary_in_usd)~.,data =df))
+
 ```
 Based on the Tukey's HSD results, I can see that there are some meaningful differences in salaries across several factors. Experience level clearly impacts salary, with more senior positions earning significantly more than entry-level roles. Job title also makes a big difference—specialized roles like Machine Learning Engineers tend to earn more compared to general data analysts. 
 I also noticed that fully remote workers are earning more than those who work in hybrid setups. There are noticeable regional differences as well, with the US offering higher salaries compared to other locations. Lastly, company size matters, with larger companies generally paying more than smaller ones. These insights highlight how various factors combine to influence salary levels meaningfully.
