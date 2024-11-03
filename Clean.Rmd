@@ -18,6 +18,7 @@ Before we begin our analysis, we must first clean the data. We'll start by looki
 df <- read.csv("DataScience_salaries_2024.csv")
 head(df)
 ```
+
 ```{r}
 sum(complete.cases(df)) == nrow(df) #Check for NA Values TRUE means there is none
 df <- unique(df) #Get rid of duplicate observations 
@@ -139,4 +140,56 @@ salary_in_usd:The salary in USD which is a quantitative variable \newline
 remote_ratio: Describes the format of the job. Nominal variable with 3 levels. "In-Person","Hybrid","Remote"\newline
 company_location:Describes what kind of country this job came from. Nominal variable with 3 levels. "US" "First World" "Developing"\newline
 company_size: Describes the size of the company. Ordinal variable with 3 levels. "S"=Small "M"=Medium "L" = Large
+
+
+```{r}
+library(car)
+symbox(df$salary_in_usd)
+hist(log(df$salary_in_usd),xlab="Salary in USD",main = "Histogram of Salary in USD")
+df$salary_in_usd = log(df$salary_in_usd)
+```
+Now we can run ANOVA on all independent variables and all interaction effects.
+This will give us an idea of what to use in the regression model.
+```{r}
+m_aov <- aov(salary_in_usd~.^2,data=df)
+summary(m_aov)
+```
+Seems like all individual variables are statistically significant.
+Interaction effects, while many are significant, I will select only 1 highly significant that has intuition.
+```{r}
+m = lm(salary_in_usd~work_year+experience_level+job_title+remote_ratio+company_location+company_size+experience_level*company_location,
+  data=df)
+summary(m)
+```
+I also want to run a regression with only inidividiaul variables to see the R^2 change by including interaction effect
+```{r}
+m_ind = lm(salary_in_usd~work_year+experience_level+job_title+remote_ratio+company_location+company_size,
+  data=df)
+summary(m_ind)
+```
+Then we do the additive model fitted on the variable salary.
+```{r}
+model.a1 = aov(salary_in_usd ~ ., data = df)
+summary(model.a1)
+
+```
+All predictors in the model—work year, experience level, job title, remote ratio, company location, and company size—are statistically significant factors in determining the salary in USD, with experience level and company location showing the strongest effects based on their F values.
+Then,let's do a model diagnostic
+```{r}
+
+par(mfrow = c(2, 2))
+plot(model.a1)
+```
+The diagnostic plot seems fits well, with only several outliers.
+
+Then we will do the tukey honest significant difference, it can tell us which speicific group variable have significantly different mean log-transformed salary from each other.
+```{r}
+TukeyHSD(aov(log10(salary_in_usd)~.,data =df))
+```
+Based on the Tukey's HSD results, I can see that there are some meaningful differences in salaries across several factors. Experience level clearly impacts salary, with more senior positions earning significantly more than entry-level roles. Job title also makes a big difference—specialized roles like Machine Learning Engineers tend to earn more compared to general data analysts. 
+I also noticed that fully remote workers are earning more than those who work in hybrid setups. There are noticeable regional differences as well, with the US offering higher salaries compared to other locations. Lastly, company size matters, with larger companies generally paying more than smaller ones. These insights highlight how various factors combine to influence salary levels meaningfully.
+
+```{r}
+
+```
 
