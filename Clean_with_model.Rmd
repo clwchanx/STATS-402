@@ -153,7 +153,7 @@ salary_in_usd is not very symmetrical. Use symbox() to find best transformation
 library(car)
 symbox(df$salary_in_usd)
 hist(log(df$salary_in_usd),xlab="Salary in USD",main = "Histogram of Salary in USD")
-df$salary_in_usd = log(df$salary_in_usd)
+df$salary_in_usd = log10(df$salary_in_usd)
 ```
 Now we can run ANOVA on all independent variables and all interaction effects.
 This will give us an idea of what to use in the regression model.
