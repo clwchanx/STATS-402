@@ -1,0 +1,94 @@
+---
+title: "Project 2"
+author: "Clayton Chan"
+date: "2024-11-11"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(caret)
+df <- read.csv("~/Downloads/Loan_default.csv", stringsAsFactors = T)
+df <- df[,-1] #Drop ID as it is not necessary
+df$Education <- factor(df$Education,levels = c("High School","Bachelor's","Master's","PhD")) #Reorder Levels
+df$MaritalStatus <- factor(df$MaritalStatus,levels = c("Single","Married","Divorced"))
+```
+
+```{r}
+set.seed(123)
+idx <- sample(29653)
+balance <- df[df$Default == 0,]
+df <- rbind(df[df$Default == 1,],balance[idx,]) #Balance dataset
+```
+
+
+```{r}
+set.seed(123)
+index <- createDataPartition(df$Default, p=.8, list=FALSE, times=1)
+train <- df[index,]
+test <- df[-index,] #Create train and test split
+```
+
+
+```{r}
+logreg <- glm(Default~.,family = 'binomial',data = train)
+summary(logreg)
+```
+
+
+```{r}
+probs <- predict(logreg, test, type = 'response')
+pred <- ifelse(probs>=.5,1,0)
+confusionMatrix(data = factor(pred),reference = factor(test$Default))
+```
+```{r}
+library(ROCR)
+pred_m1 <- prediction(probs, test$Default)  
+roc_curve <- performance(pred_m1, "tpr","fpr")
+plot(roc_curve, colorize=T)
+abline(0, 1)
+auc_ROCR <- performance(pred_m1, measure = "auc")
+(auc_ROCR <- auc_ROCR@y.values[[1]]) #Plot ROC curve and AUC
+```
+
+
+
+
+```{r}
+library(glmnet)
+x <- model.matrix(Default~., data = train)[,-1]
+glmmod <- glmnet(x, y=as.factor(train$Default), alpha=1, family="binomial") #Fit LASSO
+```
+
+```{r}
+cv.glmmod <- cv.glmnet(x, y=as.factor(train$Default), alpha=1, family="binomial")
+plot(cv.glmmod)
+(best.lambda <- cv.glmmod$lambda.min) #Find a lambda that balances accurate predictions and parsimony
+```
+
+```{r}
+glmmod <- glmnet(x, y=as.factor(train$Default), alpha=1, family="binomial", lambda = 0.0265)
+coef(glmmod) #After experimenting .0265 balances parsimony and accuracy really well
+```
+```{r}
+xtest <- model.matrix(Default~., data = test)[,-1]
+probs <- predict(glmmod, newx = xtest, type = 'response')
+pred <- ifelse(probs>=.5,1,0)
+confusionMatrix(data = factor(pred),reference = factor(test$Default))
+```
+
+
+
+```{r}
+pred_m2 <- prediction(probs, test$Default)  
+roc_curve <- performance(pred_m1, "tpr","fpr")
+plot(roc_curve, colorize=T)
+abline(0, 1)
+auc_ROCR <- performance(pred_m2, measure = "auc")
+(auc_ROCR <- auc_ROCR@y.values[[1]])
+```
+
