@@ -1,0 +1,102 @@
+---
+title: "STATS402 final project EDA"
+author: "Elbert Liu"
+date: "2024-12-02"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(caret)
+library(car)
+library(ggplot2)
+df <- read.csv("Loan_default.csv", stringsAsFactors = T)
+df <- df[,-1] #Drop ID as it is not necessary
+df <- unique(df)
+df$Default[df$Default == 0] <- 'no_default'
+df$Default[df$Default == 1] <- 'default'
+df$Default <- factor(df$Default,levels = c('no_default','default'))
+df$Education <- factor(df$Education,levels = c("High School","Bachelor's","Master's","PhD")) #Reorder Levels
+df$MaritalStatus <- factor(df$MaritalStatus,levels = c("Single","Married","Divorced"))
+
+ggplot(data=df,mapping=aes(x=Default,y=CreditScore)) +
+  geom_violin()
+```
+
+```{r}
+
+t.test(df[df$Default=='default','CreditScore'],
+       df[df$Default=='no_default','CreditScore'])
+```
+```{r}
+ggplot(data=df,mapping=aes(x=Default,y=DTIRatio)) +
+  geom_violin()
+```
+```{r}
+ggplot(data=df,mapping=aes(x=Default,y=InterestRate,fill=LoanPurpose)) +
+  geom_violin()
+```
+```{r}
+ggplot(data=df,mapping=aes(x=Default,y=Income)) +
+  geom_boxplot()
+```
+```{r}
+ggplot(data=df,mapping=aes(x=Default,y=Age)) +
+  geom_boxplot()
+```
+```{r}
+ggplot(data=df,mapping=aes(x=Default,y=LoanAmount,fill=LoanPurpose)) +
+  geom_boxplot()
+```
+```{r}
+ggplot(data=df,mapping=aes(x=Default,y=MonthsEmployed)) +
+  geom_boxplot()
+```
+```{r}
+ggplot(data=df,mapping=aes(x=Default,y=LoanTerm)) +
+  geom_boxplot()
+```
+```{r}
+odds <- as.data.frame.matrix(table(df$Education,df$Default))
+odds$odds <- odds$no_default / odds$default
+print(odds)
+```
+```{r}
+odds <- as.data.frame.matrix(table(df$LoanPurpose,df$Default))
+odds$odds <- odds$no_default / odds$default
+print(odds)
+```
+```{r}
+odds <- as.data.frame.matrix(table(df$HasCoSigner,df$Default))
+odds$odds <- odds$no_default / odds$default
+print(odds)
+```
+```{r}
+odds <- as.data.frame.matrix(table(df$HasMortgage,df$Default))
+odds$odds <- odds$no_default / odds$default
+print(odds)
+```
+```{r}
+odds <- as.data.frame.matrix(table(df$EmploymentType,df$Default))
+odds$odds <- odds$no_default / odds$default
+print(odds)
+```
+```{r}
+odds <- as.data.frame.matrix(table(df$NumCreditLines,df$Default))
+odds$odds <- odds$no_default / odds$default
+print(odds)
+```
+```{r}
+odds <- as.data.frame.matrix(table(df$MaritalStatus,df$Default))
+odds$odds <- odds$no_default / odds$default
+print(odds)
+```
+```{r}
+odds <- as.data.frame.matrix(table(df$HasDependents,df$Default))
+odds$odds <- odds$no_default / odds$default
+print(odds)
+```
