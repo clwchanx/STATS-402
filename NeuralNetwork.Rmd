@@ -1,0 +1,87 @@
+---
+title: "Neural Network"
+author: "Karen "
+date: "2024-11-21"
+output: pdf_document
+---
+
+```{r}
+library(tidyverse)
+library(caret)
+df <- read.csv("~/Downloads/Loan_default.csv", stringsAsFactors = T)
+df <- df[,-1] #Drop ID as it is not necessary
+df$Education <- factor(df$Education,levels = c("High School","Bachelor's","Master's","PhD")) #Reorder Levels
+df$MaritalStatus <- factor(df$MaritalStatus,levels = c("Single","Married","Divorced"))
+```
+
+```{r}
+set.seed(123)
+idx <- sample(1:225694,replace = F, size = 29653)
+balance <- df[df$Default == 0,]
+df <- rbind(df[df$Default == 1,],balance[idx,]) #balance the dataset for the outcome variable
+```
+
+
+```{r}
+set.seed(123)
+index <- createDataPartition(df$Default, p=.8, list=FALSE, times=1) #Make sure train and test are also balanced
+train <- df[index,]
+test <- df[-index,]
+```
+
+
+```{r}
+library(neuralnet)
+selected_features = c("Age", "Income", "LoanAmount", "MonthsEmployed", "InterestRate")
+train_nn = train[, selected_features]
+train_nn$Default = train$Default
+```
+
+```{r}
+maxs = apply(train_nn, 2, max)
+mins = apply(train_nn, 2, min)
+scaled_train = as.data.frame(scale(train_nn, center = mins, scale = maxs - mins))
+```
+
+```{r}
+formula = as.formula(paste("Default ~", paste(selected_features, collapse = "+")))
+
+```
+
+```{r}
+set.seed(123)
+nn = neuralnet(
+  formula,
+  data = scaled_train,
+  hidden = c(3), 
+  act.fct = "logistic", 
+  linear.output = FALSE,
+  stepmax = 5e+05  
+)
+```
+
+```{r}
+plot(nn)
+
+```
+
+```{r}
+scaled_test = as.data.frame(scale(test[, selected_features], center = mins[selected_features], scale = maxs[selected_features] - mins[selected_features]))
+scaled_test$Default = test$Default
+```
+
+```{r}
+nn_predictions = compute(nn, scaled_test[, selected_features])
+predicted_probabilities = nn_predictions$net.result
+predicted_classes = ifelse(predicted_probabilities > 0.5, 1, 0)
+```
+
+```{r}
+confusion_matrix = table(predicted_classes, scaled_test$Default)
+print(confusion_matrix)
+```
+
+```{r}
+accuracy = sum(diag(confusion_matrix)) / sum(confusion_matrix)
+print(paste("Accuracy: ", round(accuracy, 4)))
+```
