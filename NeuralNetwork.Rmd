@@ -72,8 +72,8 @@ scaled_test$Default = test$Default
 
 ```{r}
 nn_predictions = compute(nn, scaled_test[, selected_features])
-predicted_probabilities = nn_predictions$net.result
-predicted_classes = ifelse(predicted_probabilities > 0.5, 1, 0)
+probs = nn_predictions$net.result
+predicted_classes = ifelse(probs > 0.5, 1, 0)
 ```
 
 ```{r}
@@ -84,4 +84,16 @@ print(confusion_matrix)
 ```{r}
 accuracy = sum(diag(confusion_matrix)) / sum(confusion_matrix)
 print(paste("Accuracy: ", round(accuracy, 4)))
+```
+
+
+```{r}
+library(performance)
+library(ROCR)
+pred_m2 <-ROCR::prediction(probs, test$Default)
+roc_curve <- performance(pred_m2, "tpr","fpr")
+plot(roc_curve, colorize=T)
+abline(0, 1)
+auc_ROCR <- performance(pred_m2, measure = "auc")
+(auc_ROCR <- auc_ROCR@y.values[[1]])
 ```
