@@ -1,0 +1,74 @@
+---
+title: "402 Final"
+output: pdf_document
+date: "2024-12-02"
+---
+
+```{r}
+library(tidyverse)
+library(caret)
+df <- read.csv("~/Downloads/Loan_default.csv", stringsAsFactors = T)
+df <- df[,-1] #Drop ID as it is not necessary
+df$Education <- factor(df$Education,levels = c("High School","Bachelor's","Master's","PhD")) #Reorder Levels
+df$MaritalStatus <- factor(df$MaritalStatus,levels = c("Single","Married","Divorced"))
+```
+
+```{r}
+set.seed(123)
+idx <- sample(1:225694,replace = F, size = 29653)
+balance <- df[df$Default == 0,]
+df <- rbind(df[df$Default == 1,],balance[idx,]) #balance the dataset for the outcome variable
+```
+
+
+```{r}
+set.seed(123)
+index <- createDataPartition(df$Default, p=.8, list=FALSE, times=1) #Make sure train and test are also balanced
+train <- df[index,]
+test <- df[-index,]
+```
+
+#Random Forest
+```{r}
+library(randomForest)
+#Make sure the outcome is a factor in training dataset
+train$Default <- as.factor(train$Default)
+
+rf_model = randomForest(Default ~ ., data = train, ntree = 100, mtry = 2, importance = TRUE)
+
+print(rf_model)
+```
+```{r}
+predictions <- predict(rf_model, newdata = test)
+
+#ensure the Default column in test data has the same level as predictions
+test$Default <- factor(test$Default, levels = levels(predictions))
+
+confusionMatrix(predictions, test$Default)
+```
+```{r}
+#Visualize which variables are most important for classification.
+varImpPlot(rf_model)
+```
+
+```{r}
+#Calculate the probability
+probability <- predict(rf_model, test, "prob")
+
+probability <- probability[, -which(colnames(probability) == "0")]
+
+head(probability)
+```
+
+```{r}
+#Draw the ROC Curve
+
+library(ROCR) 
+
+pred_m2 <- prediction(probability, test$Default)
+roc_curve <- performance(pred_m2, "tpr","fpr")
+plot(roc_curve, colorize=T)
+abline(0, 1)
+auc_ROCR <- performance(pred_m2, measure = "auc")
+(auc_ROCR <- auc_ROCR@y.values[[1]])
+```
