@@ -1,0 +1,93 @@
+---
+title: "hwk3 pt4"
+output: html_document
+date: "2024-12-05"
+---
+
+```{r }
+library(nnet)
+
+```
+
+
+```{r load-data}
+data = read.csv("/Users/shuhong/Downloads/diabetic.csv")
+```
+
+```{r}
+
+# a) 
+data$TotalRiskFactors = ifelse(data$TotalRiskFactors == 0, "none", 
+                               ifelse(data$TotalRiskFactors == 1, "one", "2 or more"))
+
+# b)
+data$Diabetes.new = ifelse(data$Diabetes.new == 0, "no", "yes")
+
+# c)
+data$SmokingStatus_NISTCode = factor(data$SmokingStatus_NISTCode, 
+                                     levels = c("false", "former smokers", "smokers"))
+
+# d) 
+data$age.new = factor(data$age.new, levels = c("low", "medium", "high"))
+```
+
+```{r}
+# e) 
+smoking_vs_diabetes = table(data$SmokingStatus_NISTCode, data$Diabetes.new)
+print(smoking_vs_diabetes)
+age_vs_diabetes = table(data$age.new, data$Diabetes.new)
+print(age_vs_diabetes)
+totalrisk_vs_diabetes = table(data$TotalRiskFactors, data$Diabetes.new)
+print(totalrisk_vs_diabetes)
+```
+
+```{r}
+# 2) 
+valid_columns = c('TotalRiskFactors', 'Diabetes.new', 'HypertensionDX', 'SmokingStatus_NISTCode')
+valid_columns = valid_columns[valid_columns %in% colnames(data)]
+
+if (length(valid_columns) == 0) {
+  stop('None of the specified predictor columns exist in the dataset.')
+}
+
+levels_info = sapply(data[, valid_columns, drop = FALSE], function(x) length(unique(x)))
+
+print(levels_info)
+for (col in names(levels_info)) {
+  if (levels_info[col] == 1) {
+    cat(sprintf( col))
+    data[[col]] = NULL
+  }
+}
+
+predictors = valid_columns[valid_columns %in% colnames(data)]
+formula = as.formula(paste('age.new ~', paste(predictors, collapse = ' + ')))
+model = multinom(formula, data = data)
+```
+
+```{r}
+# 3) 
+coef_summary = summary(model)$coefficients
+std_errors = summary(model)$standard.errors
+odds_ratios = exp(coef_summary)
+ci_lower = exp(coef_summary - 1.96 * std_errors)
+ci_upper = exp(coef_summary + 1.96 * std_errors)
+
+results = data.frame(
+  Predictor = rownames(coef_summary),
+  Odds_Ratio = odds_ratios,
+  CI_Lower = ci_lower,
+  CI_Upper = ci_upper
+)
+print(results)
+
+z_values = coef_summary / std_errors
+p_values = 2 * (1 - pnorm(abs(z_values)))
+z_values
+p_values
+
+```
+
+
+
+
