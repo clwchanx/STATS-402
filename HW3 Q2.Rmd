@@ -1,0 +1,222 @@
+---
+title: "hwk3 pt4"
+output: html_document
+date: "2024-12-05"
+---
+
+```{r }
+library(nnet)
+
+```
+
+
+```{r load-data}
+data = read.csv("/Users/juyiyang/Desktop/diabetic.csv")
+```
+
+```{r}
+
+# a) 
+data$TotalRiskFactors = ifelse(data$TotalRiskFactors == 0, "none", 
+                               ifelse(data$TotalRiskFactors == 1, "one", "2 or more"))
+
+# b)
+data$Diabetes.new = ifelse(data$Diabetes.new == 0, "no", "yes")
+
+# c)
+data$SmokingStatus_NISTCode = factor(data$SmokingStatus_NISTCode, 
+                                     levels = c("false", "former smokers", "smokers"))
+
+# d) 
+data$age.new = factor(data$age.new, levels = c("low", "medium", "high"))
+```
+
+```{r}
+# e) 
+smoking_vs_diabetes = table(data$SmokingStatus_NISTCode, data$Diabetes.new)
+print(smoking_vs_diabetes)
+age_vs_diabetes = table(data$age.new, data$Diabetes.new)
+print(age_vs_diabetes)
+totalrisk_vs_diabetes = table(data$TotalRiskFactors, data$Diabetes.new)
+print(totalrisk_vs_diabetes)
+```
+
+```{r}
+# 2) 
+valid_columns = c('TotalRiskFactors', 'Diabetes.new', 'HypertensionDX', 'SmokingStatus_NISTCode')
+valid_columns = valid_columns[valid_columns %in% colnames(data)]
+
+if (length(valid_columns) == 0) {
+  stop('None of the specified predictor columns exist in the dataset.')
+}
+
+levels_info = sapply(data[, valid_columns, drop = FALSE], function(x) length(unique(x)))
+
+print(levels_info)
+for (col in names(levels_info)) {
+  if (levels_info[col] == 1) {
+    cat(sprintf( col))
+    data[[col]] = NULL
+  }
+}
+
+predictors = valid_columns[valid_columns %in% colnames(data)]
+formula = as.formula(paste('age.new ~', paste(predictors, collapse = ' + ')))
+model = multinom(formula, data = data)
+```
+
+```{r}
+# 3) 
+coef_summary = summary(model)$coefficients
+std_errors = summary(model)$standard.errors
+odds_ratios = exp(coef_summary)
+ci_lower = exp(coef_summary - 1.96 * std_errors)
+ci_upper = exp(coef_summary + 1.96 * std_errors)
+
+results = data.frame(
+  Predictor = rownames(coef_summary),
+  Odds_Ratio = odds_ratios,
+  CI_Lower = ci_lower,
+  CI_Upper = ci_upper
+)
+print(results)
+
+z_values = coef_summary / std_errors
+p_values = 2 * (1 - pnorm(abs(z_values)))
+z_values
+p_values
+
+```
+#5
+a) The odds of high risk factor:
+One risk vs none: The odds are 0.40, indicating that individuals with one risk factor are 60% less likely (odds < 1) to have a high risk factor compared to those with none. The corresponding 95% confidence interval is (0.34, 0.47), showing a precise estimate. The p-value is 0, meaning this result is statistically significant.
+Two or more risks vs none: The odds are 1.00, meaning there is no increased or decreased likelihood of high risk factor compared to none. The 95% confidence interval (0.85, 1.18) includes 1, and the p-value is 1, indicating no statistical significance.
+b) The odds of diabetic type II:
+The odds are 3.85, meaning individuals with diabetes are 3.85 times more likely to have a high risk factor compared to non-diabetics. The p-value is 0, indicating this result is statistically significant.
+c) The odds of smoker:
+Former smoker vs non-smoker: The odds are 2.12, indicating former smokers are 2.12 times more likely to have a high risk factor compared to non-smokers. The p-value is 0.05, which is borderline significant.
+Smoker vs non-smoker: The odds are 1.65, meaning smokers are 1.65 times more likely to have a high risk factor compared to non-smokers. The p-value is 0.10, showing the result is not statistically significant.
+d) The 95% confidence interval for the odds of diabetic type II:
+The interval is (3.18,4.66), meaning there is 95% confidence that the true odds ratio lies within this range. Since the interval does not include 1 and the p-value is 0, this result is statistically significant.
+e) The 95% confidence interval for smoker:
+Former smoker vs non-smoker: The interval is (1.00,3.25), indicating the odds ratio could range from no effect (1.00) to a moderate effect (3.25). Since the lower bound is exactly 1 and the p-value is 0.05, this result is marginally significant.
+Smoker vs non-smoker: The interval is (0.90,2.40), meaning the odds ratio could range from a slight decrease to a moderate increase in risk. Since the interval includes 1 and the p-value is 0.10, this result is not statistically significant.
+
+
+```{r}
+#6
+# Display the model coefficients
+coef_summary <- summary(model)$coefficients
+
+# Extract the intercept and coefficients for each category
+intercepts <- coef_summary[, "(Intercept)"]
+predictors <- colnames(coef_summary)[-1]  # Exclude the intercept
+
+# Build equations for each category
+for (category in rownames(coef_summary)) {
+  # Start with the intercept
+  equation <- paste0("log(P(", category, ") / P(reference)) = ", round(intercepts[category], 3))
+  
+  # Add predictors
+  for (predictor in predictors) {
+    beta <- coef_summary[category, predictor]
+    equation <- paste0(equation, " + ", round(beta, 3), " * ", predictor)
+  }
+  
+  # Print the equation
+  cat(equation, "\n\n")
+}
+```
+
+```{r}
+#7
+# Load ggplot2
+library(ggplot2)
+
+# Extract coefficients, standard errors, and calculate odds ratios and confidence intervals
+coef_summary <- summary(model)$coefficients
+std_errors <- summary(model)$standard.errors
+odds_ratios <- exp(coef_summary)
+ci_lower <- exp(coef_summary - 1.96 * std_errors)
+ci_upper <- exp(coef_summary + 1.96 * std_errors)
+
+# Create a tidy data frame for plotting
+plot_data <- data.frame(
+  Predictor = rep(colnames(coef_summary), each = nrow(coef_summary)),
+  Category = rep(rownames(coef_summary), times = ncol(coef_summary)),
+  Odds_Ratio = as.vector(odds_ratios),
+  CI_Lower = as.vector(ci_lower),
+  CI_Upper = as.vector(ci_upper)
+)
+
+# Remove intercept rows if not needed
+plot_data <- plot_data[plot_data$Predictor != "(Intercept)", ]
+
+# Plot odds ratios with ggplot2
+ggplot(plot_data, aes(x = Predictor, y = Odds_Ratio, color = Category)) +
+  geom_point(position = position_dodge(width = 0.5)) +
+  geom_errorbar(aes(ymin = CI_Lower, ymax = CI_Upper), 
+                position = position_dodge(width = 0.5), width = 0.2) +
+  scale_y_log10() +  # Log scale for odds ratios
+  labs(
+    title = "Odds Ratios with 95% Confidence Intervals",
+    x = "Predictors",
+    y = "Odds Ratio (log scale)"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+#8
+Summary of Predictors' Effects on High vs Low Age Group:
+- Diabetes (yes): Being diabetic increases the odds of belonging to the 'high' age group compared to the 'low' age group.
+- Hypertension Diagnosis (yes): Having a hypertension diagnosis significantly increases the likelihood of being in the 'high' age group compared to the 'low' age group.
+- Total Risk Factors:
+  * No risk factors: Associated with reduced odds of being in the 'high' age group compared to the 'low' group.
+  * One risk factor: Moderately increases the odds of being in the 'high' age group compared to the 'low' group.
+- Each predictor shows varying effects across different age categories, emphasizing how health conditions and risk factors influence the likelihood of falling into specific age groups.
+
+```{r}
+#9
+# Make predictions for the same dataset
+predicted_classes <- predict(model, newdata = data, type = "class")  # Predict class labels
+
+# Ensure actual classes are the same length as predicted
+actual_classes <- data$age.new
+
+# Check lengths to confirm they're equal
+cat("Length of predicted classes:", length(predicted_classes), "\n")
+cat("Length of actual classes:", length(actual_classes), "\n")
+
+# Create confusion matrix
+confusion_matrix <- table(Predicted = predicted_classes, Actual = actual_classes)
+print("Confusion Matrix:")
+print(confusion_matrix)
+
+# Calculate accuracy
+accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+cat("Accuracy of the model:", round(accuracy, 4), "\n")
+```
+#10
+=== Model Performance Analysis ===
+
+1. Overall Accuracy:
+The model correctly classified 51.24 % of the observations.
+This indicates moderate performance, but there is significant room for improvement.
+
+2. Sensitivity (Recall):
+Sensitivity measures the ability of the model to correctly identify true positives for each class.
+- Low age group: Sensitivity = 0.828 - The model performs well for predicting the 'low' age group.
+- Medium age group: Sensitivity = 0.176 - The model struggles to correctly identify the 'medium' age group.
+- High age group: Sensitivity = 0.541 - The model performs moderately well for predicting the 'high' age group.
+
+3. Specificity:
+Specificity measures the model's ability to correctly identify true negatives for each class.
+- Low age group: Specificity = 0.877 - The model struggles with false positives for the 'low' class.
+- Medium age group: Specificity = 0.672 - The model performs well in avoiding false positives for the 'medium' class.
+- High age group: Specificity = 0.779 - The model has reasonable performance for avoiding false positives in the 'high' class.
+
+4. Summary and Recommendations:
+The model performs well in predicting the 'low' age group but struggles with the 'medium' age group.
+Improving the classification for the 'medium' group and reducing false positives for the 'low' group
+should be key priorities for further optimization.
+Consider exploring additional predictors, feature engineering, or hyperparameter tuning.
