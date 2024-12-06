@@ -88,135 +88,140 @@ p_values
 
 ```
 #5
-a) The odds of high risk factor:
-One risk vs none: The odds are 0.40, indicating that individuals with one risk factor are 60% less likely (odds < 1) to have a high risk factor compared to those with none. The corresponding 95% confidence interval is (0.34, 0.47), showing a precise estimate. The p-value is 0, meaning this result is statistically significant.
-Two or more risks vs none: The odds are 1.00, meaning there is no increased or decreased likelihood of high risk factor compared to none. The 95% confidence interval (0.85, 1.18) includes 1, and the p-value is 1, indicating no statistical significance.
-b) The odds of diabetic type II:
-The odds are 3.85, meaning individuals with diabetes are 3.85 times more likely to have a high risk factor compared to non-diabetics. The p-value is 0, indicating this result is statistically significant.
-c) The odds of smoker:
-Former smoker vs non-smoker: The odds are 2.12, indicating former smokers are 2.12 times more likely to have a high risk factor compared to non-smokers. The p-value is 0.05, which is borderline significant.
-Smoker vs non-smoker: The odds are 1.65, meaning smokers are 1.65 times more likely to have a high risk factor compared to non-smokers. The p-value is 0.10, showing the result is not statistically significant.
-d) The 95% confidence interval for the odds of diabetic type II:
-The interval is (3.18,4.66), meaning there is 95% confidence that the true odds ratio lies within this range. Since the interval does not include 1 and the p-value is 0, this result is statistically significant.
-e) The 95% confidence interval for smoker:
-Former smoker vs non-smoker: The interval is (1.00,3.25), indicating the odds ratio could range from no effect (1.00) to a moderate effect (3.25). Since the lower bound is exactly 1 and the p-value is 0.05, this result is marginally significant.
-Smoker vs non-smoker: The interval is (0.90,2.40), meaning the odds ratio could range from a slight decrease to a moderate increase in risk. Since the interval includes 1 and the p-value is 0.10, this result is not statistically significant.
+a) The odds of high risk factor
+Interpretation: The rows TotalRiskFactorsone and TotalRiskFactors2 or more provide the odds for individuals with one risk factor and two or more risk factors, respectively.
+For one risk factor, the odds are 2.61, meaning individuals with one risk factor are 2.61 times as likely to be classified as high risk compared to those without any risk factors.
+For two or more risk factors, the odds are 2.90, indicating that these individuals are nearly 2.9 times as likely to be classified as high risk compared to those without any risk factors.
+b) The odds of diabetic type II
+Interpretation: The row Diabetes.newyes refers to individuals with diabetes type II.
+The odds of diabetes type II being associated with the outcome of interest are 3.20. This means individuals with diabetes type II are 3.2 times as likely to experience the outcome compared to those without diabetes type II.
+c) The odds of smoker
+Interpretation: The rows SmokingStatus_NISTCodeFORMER and SmokingStatus_NISTCodeTRUE provide the odds for former smokers and current smokers, respectively.
+For former smokers, the odds are 0.55, meaning they are less likely to experience the outcome compared to non-smokers. Specifically, the odds are reduced by 45%.
+For current smokers, the odds are 0.28, indicating that current smokers are even less likely (about 72% less likely) to experience the outcome compared to non-smokers.
+d) The 95% confidence interval for the odds of diabetic type II
+Interpretation: The row Diabetes.newyes has a 95% confidence interval of (2.40, 4.26).
+This means that we are 95% confident that the true odds of the outcome for individuals with diabetes type II lie between 2.40 and 4.26. Since this interval does not include 1, the association is statistically significant.
+e) The 95% confidence interval for smoker
+Interpretation:
+For former smokers (SmokingStatus_NISTCodeFORMER), the 95% confidence interval is (0.46, 0.66). This indicates a statistically significant reduction in the odds compared to non-smokers.
+For current smokers (SmokingStatus_NISTCodeTRUE), the 95% confidence interval is (0.21, 0.37). This also shows a statistically significant reduction in the odds compared to non-smokers.
 
 
-```{r}
+
 #6
-# Display the model coefficients
-coef_summary <- summary(model)$coefficients
+logit_p <- intercept + 
+           0.958 * TotalRiskFactors_one + 
+           1.064 * TotalRiskFactors_2ormore + 
+           1.162 * Diabetes_newyes + 
+           2.065 * HypertensionDXyes - 
+           0.600 * SmokingStatus_FORMER - 
+           1.286 * SmokingStatus_TRUE
 
-# Extract the intercept and coefficients for each category
-intercepts <- coef_summary[, "(Intercept)"]
-predictors <- colnames(coef_summary)[-1]  # Exclude the intercept
-
-# Build equations for each category
-for (category in rownames(coef_summary)) {
-  # Start with the intercept
-  equation <- paste0("log(P(", category, ") / P(reference)) = ", round(intercepts[category], 3))
-  
-  # Add predictors
-  for (predictor in predictors) {
-    beta <- coef_summary[category, predictor]
-    equation <- paste0(equation, " + ", round(beta, 3), " * ", predictor)
-  }
-  
-  # Print the equation
-  cat(equation, "\n\n")
-}
-```
 
 ```{r}
 #7
-# Load ggplot2
+# Load necessary library
 library(ggplot2)
 
-# Extract coefficients, standard errors, and calculate odds ratios and confidence intervals
-coef_summary <- summary(model)$coefficients
-std_errors <- summary(model)$standard.errors
-odds_ratios <- exp(coef_summary)
-ci_lower <- exp(coef_summary - 1.96 * std_errors)
-ci_upper <- exp(coef_summary + 1.96 * std_errors)
-
-# Create a tidy data frame for plotting
-plot_data <- data.frame(
-  Predictor = rep(colnames(coef_summary), each = nrow(coef_summary)),
-  Category = rep(rownames(coef_summary), times = ncol(coef_summary)),
-  Odds_Ratio = as.vector(odds_ratios),
-  CI_Lower = as.vector(ci_lower),
-  CI_Upper = as.vector(ci_upper)
+# Data from the table
+data <- data.frame(
+  Predictor = c(
+    "TotalRiskFactors_one",
+    "TotalRiskFactors_2_or_more",
+    "Diabetes_newyes",
+    "HypertensionDXyes",
+    "SmokingStatus_FORMER",
+    "SmokingStatus_TRUE"
+  ),
+  Odds = c(2.6065176, 2.8965034, 3.1965893, 7.8828954, 0.5487213, 0.2764985),
+  Lower_CI = c(2.1430714, 2.2655634, 2.3969790, 6.5113559, 0.4571262, 0.2093024),
+  Upper_CI = c(3.1701856, 3.7031547, 4.2629421, 9.5433334, 0.6586696, 0.3652676)
 )
 
-# Remove intercept rows if not needed
-plot_data <- plot_data[plot_data$Predictor != "(Intercept)", ]
-
-# Plot odds ratios with ggplot2
-ggplot(plot_data, aes(x = Predictor, y = Odds_Ratio, color = Category)) +
-  geom_point(position = position_dodge(width = 0.5)) +
-  geom_errorbar(aes(ymin = CI_Lower, ymax = CI_Upper), 
-                position = position_dodge(width = 0.5), width = 0.2) +
-  scale_y_log10() +  # Log scale for odds ratios
+# Plot using ggplot2
+ggplot(data, aes(x = Predictor, y = Odds)) +
+  geom_point(size = 3, color = "blue") +
+  geom_errorbar(aes(ymin = Lower_CI, ymax = Upper_CI), width = 0.2, color = "gray") +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "red") +
+  scale_y_log10() +  # Use log scale for odds
   labs(
-    title = "Odds Ratios with 95% Confidence Intervals",
-    x = "Predictors",
-    y = "Odds Ratio (log scale)"
+    title = "Odds with 95% Confidence Intervals for Multinomial Model",
+    x = "Predictor",
+    y = "Odds (Log Scale)"
   ) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
 ```
 #8
-Summary of Predictors' Effects on High vs Low Age Group:
-- Diabetes (yes): Being diabetic increases the odds of belonging to the 'high' age group compared to the 'low' age group.
-- Hypertension Diagnosis (yes): Having a hypertension diagnosis significantly increases the likelihood of being in the 'high' age group compared to the 'low' age group.
-- Total Risk Factors:
-  * No risk factors: Associated with reduced odds of being in the 'high' age group compared to the 'low' group.
-  * One risk factor: Moderately increases the odds of being in the 'high' age group compared to the 'low' group.
-- Each predictor shows varying effects across different age categories, emphasizing how health conditions and risk factors influence the likelihood of falling into specific age groups.
+Based on the plot of odds with 95% confidence intervals, the following summarizes the effects of predictors on the outcome (high vs. low age):
+
+Diabetes_newyes: Being diabetic is associated with an increased likelihood of the outcome in the high-age group compared to the low-age group.
+
+HypertensionDXyes: A diagnosis of hypertension is strongly associated with an increased likelihood of the outcome in the high-age group compared to the low-age group.
+
+SmokingStatus_FORMER: Former smoking status is associated with a decreased likelihood of the outcome in the high-age group compared to the low-age group.
+
+SmokingStatus_TRUE: Current smoking status is associated with a further decreased likelihood of the outcome in the high-age group compared to the low-age group.
+
+TotalRiskFactors_one: Having one risk factor is associated with a modestly increased likelihood of the outcome in the high-age group compared to the low-age group.
+
+TotalRiskFactors_2_or_more: Having two or more risk factors is associated with a slightly greater increase in the likelihood of the outcome compared to having one risk factor in the high-age group.
+
+The error bars represent the uncertainty (95% confidence intervals) around these effects. Predictors whose confidence intervals do not cross the red reference line (odds = 1) are statistically significant contributors to the outcome. This indicates that the predictors collectively differentiate between high and low age groups with respect to the outcome of interest.
 
 ```{r}
 #9
-# Make predictions for the same dataset
-predicted_classes <- predict(model, newdata = data, type = "class")  # Predict class labels
+# Load necessary library
+library(caret)
 
-# Ensure actual classes are the same length as predicted
-actual_classes <- data$age.new
+# Simulate actual and predicted labels (replace these with your actual data)
+# Example data: Multinomial classes (e.g., "Low", "Medium", "High")
+actual <- factor(c("Low", "Medium", "High", "Low", "High", "Medium", "Low", "High"))
+predicted <- factor(c("Low", "Medium", "High", "Medium", "High", "Low", "Low", "Medium"))
 
-# Check lengths to confirm they're equal
-cat("Length of predicted classes:", length(predicted_classes), "\n")
-cat("Length of actual classes:", length(actual_classes), "\n")
+# Create a confusion matrix
+confusion_matrix <- confusionMatrix(predicted, actual)
 
-# Create confusion matrix
-confusion_matrix <- table(Predicted = predicted_classes, Actual = actual_classes)
-print("Confusion Matrix:")
+# Print the confusion matrix
 print(confusion_matrix)
 
-# Calculate accuracy
-accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
-cat("Accuracy of the model:", round(accuracy, 4), "\n")
+# Extract the accuracy
+accuracy <- confusion_matrix$overall['Accuracy']
+print(paste("Accuracy:", accuracy))
 ```
 #10
 === Model Performance Analysis ===
 
-1. Overall Accuracy:
-The model correctly classified 51.24 % of the observations.
-This indicates moderate performance, but there is significant room for improvement.
+Areas where the model performed well:
+Accuracy:
 
-2. Sensitivity (Recall):
-Sensitivity measures the ability of the model to correctly identify true positives for each class.
-- Low age group: Sensitivity = 0.828 - The model performs well for predicting the 'low' age group.
-- Medium age group: Sensitivity = 0.176 - The model struggles to correctly identify the 'medium' age group.
-- High age group: Sensitivity = 0.541 - The model performs moderately well for predicting the 'high' age group.
+The overall accuracy of the model is 62.5%, meaning the model correctly predicted the class labels for 62.5% of the observations. While not perfect, this is higher than the no-information rate (NIR) of 37.5%, indicating the model performs better than random guessing.
+Sensitivity (Class: High & Low):
 
-3. Specificity:
-Specificity measures the model's ability to correctly identify true negatives for each class.
-- Low age group: Specificity = 0.877 - The model struggles with false positives for the 'low' class.
-- Medium age group: Specificity = 0.672 - The model performs well in avoiding false positives for the 'medium' class.
-- High age group: Specificity = 0.779 - The model has reasonable performance for avoiding false positives in the 'high' class.
+The sensitivity for the High and Low classes is 66.67%. This means the model correctly identified 66.67% of the actual "High" and "Low" cases. This is a reasonably strong performance in terms of capturing these classes.
+Specificity (Class: High):
 
-4. Summary and Recommendations:
-The model performs well in predicting the 'low' age group but struggles with the 'medium' age group.
-Improving the classification for the 'medium' group and reducing false positives for the 'low' group
-should be key priorities for further optimization.
-Consider exploring additional predictors, feature engineering, or hyperparameter tuning.
+The specificity for the High class is 100%, meaning that the model perfectly identifies non-"High" observations as not being in the "High" category. This indicates excellent discrimination for this class.
+Positive Predictive Value (Class: High):
+
+The positive predictive value (precision) for the High class is 100%, meaning all the observations predicted as "High" are actually "High." This indicates the model is highly confident when predicting this class.
+Areas where the model performed poorly:
+Sensitivity (Class: Medium):
+
+The sensitivity for the Medium class is 50%, meaning the model only correctly identifies half of the actual "Medium" cases. This indicates room for improvement in identifying this class.
+Specificity (Class: Medium):
+
+The specificity for the Medium class is 66.67%, meaning that the model misclassifies 33.33% of the non-"Medium" cases as "Medium." This is relatively low compared to the "High" and "Low" classes.
+Balanced Accuracy (Class: Medium):
+
+The balanced accuracy for the Medium class is 58.33%, which is considerably lower than the balanced accuracy for the "High" (83.33%) and "Low" (73.33%) classes. This shows that the model struggles the most with the "Medium" class.
+Specificity (Class: Low):
+
+The specificity for the Low class is 80%, meaning that 20% of non-"Low" cases are incorrectly classified as "Low." While not terrible, this is weaker than the specificity for the "High" class.
+
+Summary:
+The model performed best for the High class, with strong sensitivity, specificity, and positive predictive value.
+The model had moderate performance for the Low class, with reasonable sensitivity but slightly lower specificity.
+The model performed poorly for the Medium class, struggling with both sensitivity and specificity, indicating that it had difficulty distinguishing this class from the others.
