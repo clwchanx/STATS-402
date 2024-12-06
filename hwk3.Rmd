@@ -4,90 +4,63 @@ output: html_document
 date: "2024-12-05"
 ---
 
-```{r }
-library(nnet)
-
-```
 
 
-```{r load-data}
-data = read.csv("/Users/shuhong/Downloads/diabetic.csv")
-```
+
 
 ```{r}
+df <-  read.csv("~/Downloads/diabetic.csv")
+head(df)
 
-# a) 
-data$TotalRiskFactors = ifelse(data$TotalRiskFactors == 0, "none", 
-                               ifelse(data$TotalRiskFactors == 1, "one", "2 or more"))
+df$TotalRiskFactors = factor(ifelse(df$TotalRiskFactors == 0, "none", 
+                               ifelse(df$TotalRiskFactors == 1, "one", "2 or more")), levels = c("none","one","2 or more"))
 
 # b)
-data$Diabetes.new = ifelse(data$Diabetes.new == 0, "no", "yes")
+df$Diabetes.new = ifelse(df$Diabetes.new == 0, "no", "yes")
 
 # c)
-data$SmokingStatus_NISTCode = factor(data$SmokingStatus_NISTCode, 
-                                     levels = c("false", "former smokers", "smokers"))
+df$SmokingStatus_NISTCode = factor(df$SmokingStatus_NISTCode, 
+                                     levels = c("FALSE", "FORMER", "TRUE"))
 
 # d) 
-data$age.new = factor(data$age.new, levels = c("low", "medium", "high"))
-```
+df$age.new = factor(df$age.new, levels = c("low", "medium", "high"))
 
-```{r}
-# e) 
-smoking_vs_diabetes = table(data$SmokingStatus_NISTCode, data$Diabetes.new)
-print(smoking_vs_diabetes)
-age_vs_diabetes = table(data$age.new, data$Diabetes.new)
-print(age_vs_diabetes)
-totalrisk_vs_diabetes = table(data$TotalRiskFactors, data$Diabetes.new)
-print(totalrisk_vs_diabetes)
 ```
 
 ```{r}
 # 2) 
 valid_columns = c('TotalRiskFactors', 'Diabetes.new', 'HypertensionDX', 'SmokingStatus_NISTCode')
-valid_columns = valid_columns[valid_columns %in% colnames(data)]
+valid_columns = valid_columns[valid_columns %in% colnames(df)]
 
 if (length(valid_columns) == 0) {
   stop('None of the specified predictor columns exist in the dataset.')
 }
 
-levels_info = sapply(data[, valid_columns, drop = FALSE], function(x) length(unique(x)))
+levels_info = sapply(df[, valid_columns, drop = FALSE], function(x) length(unique(x)))
 
 print(levels_info)
 for (col in names(levels_info)) {
   if (levels_info[col] == 1) {
     cat(sprintf( col))
-    data[[col]] = NULL
+    df[[col]] = NULL
   }
 }
-
-predictors = valid_columns[valid_columns %in% colnames(data)]
+library(nnet)
+predictors = valid_columns[valid_columns %in% colnames(df)]
 formula = as.formula(paste('age.new ~', paste(predictors, collapse = ' + ')))
-model = multinom(formula, data = data)
-```
+model = multinom(formula, data = df)
 
+```
 ```{r}
-# 3) 
-coef_summary = summary(model)$coefficients
-std_errors = summary(model)$standard.errors
-odds_ratios = exp(coef_summary)
-ci_lower = exp(coef_summary - 1.96 * std_errors)
-ci_upper = exp(coef_summary + 1.96 * std_errors)
+(coef <- summary(model)$coefficients)
+(intv <- exp(confint(model)))
+z <-summary(model)$coefficients/summary(model)$standard.errors
+(p <- (1 - pnorm(abs(z), 0, 1))*2)
 
-results = data.frame(
-  Predictor = rownames(coef_summary),
-  Odds_Ratio = odds_ratios,
-  CI_Lower = ci_lower,
-  CI_Upper = ci_upper
-)
-print(results)
-
-z_values = coef_summary / std_errors
-p_values = 2 * (1 - pnorm(abs(z_values)))
-z_values
-p_values
-
+t1 <- cbind("log odds" = coef["medium",],odds = exp(coef["medium",]),intv[,,"medium"],"p-value" = p['medium',])[-1,]
+t2 <- cbind("log odds" = coef["high",],odds = exp(coef["high",]),intv[,,"high"],"p-value" =p['high',])[-1,]
 ```
-
-
-
-
+```{r}
+as.data.frame(t1)
+as.data.frame(t2)
+```
