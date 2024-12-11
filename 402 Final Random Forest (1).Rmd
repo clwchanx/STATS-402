@@ -1,0 +1,122 @@
+---
+title: ""
+output: pdf_document
+date: ""
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+```{r,include = F}
+library(tidyverse)
+library(caret)
+library(randomForest)
+library(ROCR) 
+df <- read.csv("~/Downloads/Loan_default.csv", stringsAsFactors = T)
+df <- df[,-1] #Drop ID as it is not necessary
+df$Education <- factor(df$Education,levels = c("High School","Bachelor's","Master's","PhD")) #Reorder Levels
+df$MaritalStatus <- factor(df$MaritalStatus,levels = c("Single","Married","Divorced"))
+```
+
+```{r}
+set.seed(123)
+idx <- sample(1:225694,replace = F, size = 29653)
+balance <- df[df$Default == 0,]
+df <- rbind(df[df$Default == 1,],balance[idx,]) #balance the dataset for the outcome variable
+```
+
+
+```{r}
+set.seed(123)
+index <- createDataPartition(df$Default, p=.8, list=FALSE, times=1) #Make sure train and test are also balanced
+train <- df[index,]
+test <- df[-index,]
+```
+
+# Random Forest
+
+Random Forest is like asking a group of experts for their opinion and combining their answers to make
+a better decision. It’s an ensemble learning method that creates multiple decision trees (like individual
+1
+experts), and their predictions are combined to make the final decision. Each opinion is like a decision tree,
+they may not always be right. But when you combine their votes , you’ll likely make a better prediction.
+Random Forest is a powerful ensemble learning method used primarily for classification and regression tasks.
+It creates multiple decision trees by: Bootstrapping the training data to form subsets. Randomly selecting
+features at each split in the trees. Aggregating the results from all trees (majority vote for classification or
+average for regression). This approach helps Random Forest reduce overfitting and improve model accuracy
+by introducing diversity into the individual decision trees.
+What is Grid Search? Grid Search is a systematic method to tune the hyperparameters of a machine learning
+model. It helps find the best combination of parameters by exhaustively trying all possible values within a
+specified range.
+Why Do We Use Grid Search? Hyperparameters, like the number of trees (ntree) or the number of features
+considered at each split (mtry) in Random Forest, can significantly impact a model’s performance. Grid
+Search helps identify the combination of hyperparameters that yields the best results.
+```{r}
+#Make sure the outcome is a factor in training dataset
+train$Default <- as.factor(train$Default)
+
+rf_model = randomForest(Default ~ ., data = train, ntree = 100, mtry = 2, importance = TRUE)
+
+print(rf_model)
+```
+
+Number of Trees (ntree):
+A Random Forest consists of many decision trees, each contributing to the overall prediction. We used grid
+search to test multiple values for ntree (e.g., 100, 200, 500) and found that 500 trees provided the best balance
+of: Model performance: Adding more trees reduced the OOB (Out-of-Bag) error rate. Computational cost:
+500 trees maintained a reasonable runtime. Why stop at 500? Beyond a certain point, adding more trees
+gives diminishing returns while significantly increasing computation time. Result: 500 trees helped achieve
+an OOB error rate of 31.89%, showing good generalization.
+Number of Variables Tried at Each Split (mtry): When building each decision tree, a Random Forest
+algorithm randomly selects a subset of features to consider for splits at each node. Using grid search, we
+tested different values of mtry (e.g., 2, 3, 4) and found that 2 features at each split worked best. Why 2? It
+introduced diversity among the trees (as each tree used different features for splitting). It maintained good
+predictive power, avoiding underfitting or overfitting.
+
+```{r}
+predictions <- predict(rf_model, newdata = test)
+
+#ensure the Default column in test data has the same level as predictions
+test$Default <- factor(test$Default, levels = levels(predictions))
+
+confusionMatrix(predictions, test$Default)
+```
+```{r}
+#Visualize which variables are most important for classification.
+varImpPlot(rf_model)
+```
+
+
+Important Predictors 1. Mean Decrease in Accuracy This metric evaluates how much model accuracy
+would decrease if a specific predictor were removed. Higher values indicate greater importance. Age: Most
+significant predictor, suggesting a strong relationship between a person’s age and their likelihood of defaulting
+on a loan. Interest Rate: Reflects the impact of borrowing cost; higher interest rates likely correlate with
+increased risk of default. Income: Indicates that higher income reduces the probability of default. Months
+Employed: Job stability plays a role in financial security. Loan Amount: Larger loans are associated with
+higher default risk. 2. Mean Decrease in Gini This measures the contribution of each variable to reducing
+impurity (classification error) in the trees. Higher values indicate more influential variables. Age Interest
+Rate Income: Loan Amount Months Employed In conclusion, Age, Interest Rate, Income, Loan Amount,
+and Months Employed emerge as the most important predictors, these variables can guide loan underwriting
+processes and risk assessment strategies.
+```{r,include = F}
+#Calculate the probability
+probability <- predict(rf_model, test, "prob")
+
+probability <- probability[, -which(colnames(probability) == "0")]
+
+head(probability)
+```
+
+```{r, include = F}
+#Draw the ROC Curve
+
+
+pred_m2 <- prediction(probability, test$Default)
+roc_curve <- performance(pred_m2, "tpr","fpr")
+plot(roc_curve, colorize=T)
+abline(0, 1)
+auc_ROCR <- performance(pred_m2, measure = "auc")
+(auc_ROCR <- auc_ROCR@y.values[[1]])
+```
